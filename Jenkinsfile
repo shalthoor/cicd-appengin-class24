@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        PROJECT_ID = 'october-2026-511906'
+        PROJECT_ID = 'first-cicd-project'
     }
 
     stages {
