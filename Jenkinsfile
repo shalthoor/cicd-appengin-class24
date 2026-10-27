@@ -1,103 +1,120 @@
+```groovy
 pipeline {
     agent any
 
     environment {
         PROJECT_ID = 'first-cicd-project'
+        GCP_CREDENTIALS_ID = 'gcp-service-account'
     }
 
     stages {
 
         stage('Setup Python 3.13') {
             steps {
-                echo "===== Setting up Python 3.13 ====="
+                echo '===== Setting up Python environment ====='
+
                 sh '''
+                    set -eu
+
                     python3 --version
                     rm -rf venv
                     python3 -m venv venv
 
                     . venv/bin/activate
+
                     python --version
-                    pip install --upgrade pip setuptools wheel
-                    pip install -r requirements.txt
+                    python -m pip install --upgrade pip setuptools wheel
+                    python -m pip install -r requirements.txt
                 '''
             }
         }
 
-        stage('Clean Workspace') {
+        stage('Clean Deployment Artifacts') {
             steps {
-                echo "===== Cleaning old deployment artifacts ====="
-                sh 'rm -rf .gcloudignore staging/'
+                echo '===== Cleaning old deployment artifacts ====='
+
+                sh '''
+                    set -eu
+                    rm -rf staging/
+                '''
             }
         }
 
-        
-stage('Authenticate GCP') {
-    steps {
-        echo "===== Authenticating with GCP ====="
+        stage('Authenticate GCP') {
+            steps {
+                echo '===== Authenticating with Google Cloud ====='
 
-        withCredentials([
-            file(
-                credentialsId: 'gcp-service-account',
-                variable: 'KEYFILE'
-            )
-        ]) {
-            sh '''
-                set -eu
+                withCredentials([
+                    file(
+                        credentialsId: "${GCP_CREDENTIALS_ID}",
+                        variable: 'KEYFILE'
+                    )
+                ]) {
+                    sh '''
+                        set -eu
 
-                gcloud auth activate-service-account \
-                    --key-file="$KEYFILE"
+                        gcloud auth activate-service-account \
+                            --key-file="$KEYFILE" \
+                            --project="$PROJECT_ID"
 
-                gcloud config set project first-cicd-project
+                        gcloud config set project "$PROJECT_ID"
 
-                echo "===== Verify authenticated account ====="
-                gcloud auth list
+                        echo "===== Verify active account ====="
+                        gcloud auth list
 
-                echo "===== Verify target App Engine application ====="
-                gcloud app describe \
-                    --project=first-cicd-project
-            '''
+                        echo "===== Verify project ====="
+                        gcloud config get-value project
+
+                        echo "===== Verify App Engine application ====="
+                        gcloud app describe \
+                            --project="$PROJECT_ID"
+                    '''
+                }
+            }
         }
-    }
-}
-
-stage('Deploy to App Engine') {
-    steps {
-        echo "===== Deploying to first-cicd-project ====="
-
-        sh '''
-            set -eu
-
-            . venv/bin/activate
-
-            gcloud app deploy app.yaml \
-                --project=first-cicd-project \
-                --quiet \
-                --verbosity=info
-        '''
-    }
-}
 
         stage('Deploy to App Engine') {
             steps {
-                echo "===== Deploying App Engine ====="
-                sh '''
-                    . venv/bin/activate
-                    gcloud app deploy app.yaml --quiet --verbosity=info
-                '''
+                echo '===== Deploying application to App Engine ====='
+
+                withCredentials([
+                    file(
+                        credentialsId: "${GCP_CREDENTIALS_ID}",
+                        variable: 'KEYFILE'
+                    )
+                ]) {
+                    sh '''
+                        set -eu
+
+                        . venv/bin/activate
+
+                        gcloud auth activate-service-account \
+                            --key-file="$KEYFILE" \
+                            --project="$PROJECT_ID"
+
+                        gcloud app deploy app.yaml \
+                            --project="$PROJECT_ID" \
+                            --quiet \
+                            --verbosity=info
+                    '''
+                }
             }
         }
     }
 
     post {
-        always {
-            echo "Cleaning up workspace..."
-            cleanWs()
-        }
         success {
-            echo "Deployment succeeded!"
+            echo 'Deployment succeeded!'
         }
+
         failure {
-            echo "Deployment failed!"
+            echo 'Deployment failed. Review the stage logs above.'
+        }
+
+        always {
+            echo '===== Cleaning Jenkins workspace ====='
+            cleanWs()
         }
     }
 }
+```
