@@ -7,7 +7,6 @@ pipeline {
     }
 
     stages {
-
         stage('Setup Python 3.13') {
             steps {
                 echo '===== Setting up Python environment ====='
@@ -72,36 +71,35 @@ pipeline {
             }
         }
 
+        stage('Deploy to App Engine') {
+            steps {
+                echo '===== Deploying application to App Engine (without promoting traffic) ====='
 
-stage('Deploy to App Engine') {
-    steps {
-        echo '===== Deploying application to App Engine (without promoting traffic) ====='
+                withCredentials([
+                    file(
+                        credentialsId: "${GCP_CREDENTIALS_ID}",
+                        variable: 'KEYFILE'
+                    )
+                ]) {
+                    sh '''
+                        set -eu
 
-        withCredentials([
-            file(
-                credentialsId: "${GCP_CREDENTIALS_ID}",
-                variable: 'KEYFILE'
-            )
-        ]) {
-            sh '''
-                set -eu
+                        . venv/bin/activate
 
-                . venv/bin/activate
+                        gcloud auth activate-service-account \
+                            --key-file="$KEYFILE" \
+                            --project="$PROJECT_ID"
 
-                gcloud auth activate-service-account \
-                    --key-file="$KEYFILE" \
-                    --project="$PROJECT_ID"
-
-                gcloud app deploy app.yaml \
-                    --project="$PROJECT_ID" \
-                    --no-promote \
-                    --quiet \
-                    --verbosity=info
-            '''
+                        gcloud app deploy app.yaml \
+                            --project="$PROJECT_ID" \
+                            --no-promote \
+                            --quiet \
+                            --verbosity=info
+                    '''
+                }
+            }
         }
     }
-}
-
 
     post {
         success {
@@ -118,4 +116,3 @@ stage('Deploy to App Engine') {
         }
     }
 }
-
