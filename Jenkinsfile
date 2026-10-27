@@ -30,17 +30,52 @@ pipeline {
             }
         }
 
-        stage('Authenticate GCP') {
-            steps {
-                echo "===== Authenticating with GCP ====="
-                withCredentials([file(credentialsId: 'gcp-service-account', variable: 'KEYFILE')]) {
-                    sh '''
-                        gcloud auth activate-service-account --key-file=$KEYFILE
-                        gcloud config set project ${PROJECT_ID}
-                    '''
-                }
-            }
+        
+stage('Authenticate GCP') {
+    steps {
+        echo "===== Authenticating with GCP ====="
+
+        withCredentials([
+            file(
+                credentialsId: 'gcp-service-account',
+                variable: 'KEYFILE'
+            )
+        ]) {
+            sh '''
+                set -eu
+
+                gcloud auth activate-service-account \
+                    --key-file="$KEYFILE"
+
+                gcloud config set project first-cicd-project
+
+                echo "===== Verify authenticated account ====="
+                gcloud auth list
+
+                echo "===== Verify target App Engine application ====="
+                gcloud app describe \
+                    --project=first-cicd-project
+            '''
         }
+    }
+}
+
+stage('Deploy to App Engine') {
+    steps {
+        echo "===== Deploying to first-cicd-project ====="
+
+        sh '''
+            set -eu
+
+            . venv/bin/activate
+
+            gcloud app deploy app.yaml \
+                --project=first-cicd-project \
+                --quiet \
+                --verbosity=info
+        '''
+    }
+}
 
         stage('Deploy to App Engine') {
             steps {
