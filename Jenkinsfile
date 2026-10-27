@@ -72,34 +72,36 @@ pipeline {
             }
         }
 
-        stage('Deploy to App Engine') {
-            steps {
-                echo '===== Deploying application to App Engine ====='
 
-                withCredentials([
-                    file(
-                        credentialsId: "${GCP_CREDENTIALS_ID}",
-                        variable: 'KEYFILE'
-                    )
-                ]) {
-                    sh '''
-                        set -eu
+stage('Deploy to App Engine') {
+    steps {
+        echo '===== Deploying application to App Engine (without promoting traffic) ====='
 
-                        . venv/bin/activate
+        withCredentials([
+            file(
+                credentialsId: "${GCP_CREDENTIALS_ID}",
+                variable: 'KEYFILE'
+            )
+        ]) {
+            sh '''
+                set -eu
 
-                        gcloud auth activate-service-account \
-                            --key-file="$KEYFILE" \
-                            --project="$PROJECT_ID"
+                . venv/bin/activate
 
-                        gcloud app deploy app.yaml \
-                            --project="$PROJECT_ID" \
-                            --quiet \
-                            --verbosity=info
-                    '''
-                }
-            }
+                gcloud auth activate-service-account \
+                    --key-file="$KEYFILE" \
+                    --project="$PROJECT_ID"
+
+                gcloud app deploy app.yaml \
+                    --project="$PROJECT_ID" \
+                    --no-promote \
+                    --quiet \
+                    --verbosity=info
+            '''
         }
     }
+}
+
 
     post {
         success {
