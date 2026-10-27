@@ -16,7 +16,8 @@
 # See https://cloud.google.com/appengine/docs/managed-vms/config for details.
 
 runtime: python313
-
+env_variables:
+  PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python
 env: standard
 entrypoint: gunicorn -b :$PORT main:app
 
