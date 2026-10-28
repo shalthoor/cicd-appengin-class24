@@ -9,4 +9,3 @@ six==1.16.0
 setuptools>=80,<81
 gunicorn>=23,<24
 
-Flask-SQLAlchemy==2.5.1
